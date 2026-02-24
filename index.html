@@ -127,6 +127,10 @@
         <div id="paneUserDash" style="display:none">
           <div class="kpi">
             <div class="box">
+              <div class="muted">Name</div>
+              <div class="big" id="meName">-</div>
+            </div>
+            <div class="box">
               <div class="muted">Phone</div>
               <div class="big mono" id="mePhone">-</div>
             </div>
@@ -150,6 +154,10 @@
           <div id="uTab-transfer" style="margin-top:12px">
             <label>To Phone</label>
             <input id="toPhone" placeholder="Receiver phone" />
+            <div class="muted small" style="margin-top:6px">
+              Receiver: <b id="toName">-</b>
+            </div>
+
             <div class="row">
               <div>
                 <label>Amount</label>
@@ -251,12 +259,12 @@
 
       <div style="display:flex;justify-content:space-between;gap:10px">
         <div style="font-size:12px;color:#64748b">From</div>
-        <div id="slipFrom" style="font-weight:800"></div>
+        <div id="slipFrom" style="font-weight:800;text-align:right;max-width:230px;word-break:break-word"></div>
       </div>
 
       <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px">
         <div style="font-size:12px;color:#64748b">To</div>
-        <div id="slipTo" style="font-weight:800"></div>
+        <div id="slipTo" style="font-weight:800;text-align:right;max-width:230px;word-break:break-word"></div>
       </div>
 
       <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px">
@@ -289,7 +297,6 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Slip PNG -->
 <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script type="module">
@@ -299,7 +306,6 @@
     serverTimestamp, runTransaction, query, where, limit, getDocs, deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyAMvSkMNZDaLJQy5FboxP4_i-al4GAKGa4",
     authDomain: "ypay-abb1d.firebaseapp.com",
@@ -354,9 +360,9 @@
   }
 
   // ===== Slip auto-save =====
-  async function saveSlipPNG({ from, to, amount, note, txId, timeText }){
-    $("slipFrom").textContent = from || "-";
-    $("slipTo").textContent = to || "-";
+  async function saveSlipPNG({ fromLabel, toLabel, amount, note, txId, timeText }){
+    $("slipFrom").textContent = fromLabel || "-";
+    $("slipTo").textContent   = toLabel || "-";
     $("slipAmount").textContent = fmtMMK(amount);
     $("slipNote").textContent = note || "-";
     $("slipTxId").textContent = txId || "-";
@@ -428,6 +434,29 @@
   });
 
   $("btnLogout").addEventListener("click", logout);
+
+  // ===== Receiver name lookup (debounce) =====
+  let _toTimer = null;
+  async function lookupReceiverName(phone){
+    phone = normPhone(phone);
+    if(!phone){ $("toName").textContent = "-"; return; }
+
+    try{
+      const snap = await getDoc(doc(db,"users",phone));
+      if(!snap.exists()){
+        $("toName").textContent = "Not found / Not approved";
+        return;
+      }
+      const u = snap.data();
+      $("toName").textContent = u.name || "(No name)";
+    }catch(e){
+      $("toName").textContent = "Error";
+    }
+  }
+  $("toPhone").addEventListener("input", ()=>{
+    clearTimeout(_toTimer);
+    _toTimer = setTimeout(()=> lookupReceiverName($("toPhone").value), 350);
+  });
 
   // REGISTER -> applications/{phone}
   $("btnApply").addEventListener("click", async ()=>{
@@ -533,6 +562,7 @@
     if(!snap.exists()){ toast("Missing user"); return logout(); }
     const u = snap.data();
 
+    $("meName").textContent  = u.name || "-";
     $("mePhone").textContent = u.phone || session.phone;
     $("meBal").textContent   = money(u.balance||0);
     $("meStatus").innerHTML  = userStatusTag(u.status || "active");
@@ -542,7 +572,7 @@
     if(disabled) toast("Your account is not active");
   }
 
-  // USER: transfer + slip
+  // USER: transfer + slip with names
   $("btnTransfer").addEventListener("click", async ()=>{
     if(session.role!=="user") return toast("User only");
     const from = session.phone;
@@ -586,12 +616,26 @@
         createdAt: serverTimestamp()
       });
 
+      // fetch names for slip
+      const [meSnap, toSnap] = await Promise.all([
+        getDoc(doc(db,"users",from)),
+        getDoc(doc(db,"users",to))
+      ]);
+      const meName = meSnap.exists() ? (meSnap.data().name || "Unknown") : "Unknown";
+      const toName = toSnap.exists() ? (toSnap.data().name || "Unknown") : "Unknown";
+
       toast("Sent + Slip saved");
-      await saveSlipPNG({ from, to, amount, note, txId: txRef.id, timeText: new Date().toLocaleString() });
+      await saveSlipPNG({
+        fromLabel: `${meName} (${from})`,
+        toLabel: `${toName} (${to})`,
+        amount, note, txId: txRef.id,
+        timeText: new Date().toLocaleString()
+      });
 
       $("toPhone").value = "";
       $("amount").value = "";
       $("note").value = "";
+      $("toName").textContent = "-";
 
       await refreshUserDash();
       await refreshMyTx();
@@ -853,7 +897,7 @@
     });
   }
 
-  // ADMIN: topup + slip
+  // ADMIN: topup + slip (SYSTEM -> user)
   $("btnTopup").addEventListener("click", async ()=>{
     if(session.role!=="admin") return toast("Admin only");
     const phone = normPhone($("topPhone").value);
@@ -884,8 +928,20 @@
         createdAt: serverTimestamp()
       });
 
+      // fetch receiver name for slip
+      const toSnap = await getDoc(doc(db,"users",phone));
+      const toName = toSnap.exists() ? (toSnap.data().name || "Unknown") : "Unknown";
+
       toast("Topup + Slip saved");
-      await saveSlipPNG({ from:"SYSTEM", to:phone, amount, note:"Topup", txId:txRef.id, timeText:new Date().toLocaleString() });
+      await saveSlipPNG({
+        fromLabel: `SYSTEM`,
+        toLabel: `${toName} (${phone})`,
+        amount,
+        note: "Topup",
+        txId: txRef.id,
+        timeText: new Date().toLocaleString()
+      });
+
       $("topAmount").value = "";
       await refreshAdminData();
     }catch(e){
