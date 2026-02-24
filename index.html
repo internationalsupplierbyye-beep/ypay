@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>YPay Demo (Firebase) — Apply → Approve → Wallet</title>
+  <title>YPay Demo (Firebase) — Register → Approve → Login</title>
   <style>
     :root{
       --bg:#f5f7fb; --card:#fff; --text:#0f172a; --muted:#64748b;
@@ -31,11 +31,11 @@
     .hd h2{margin:0;font-size:14px}
     .bd{padding:14px}
     label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px}
-    input, select, textarea{
+    input, textarea{
       width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;
       font-size:14px;outline:none;background:#fff;
     }
-    input:focus, select:focus, textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+    input:focus, textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .row > *{flex:1;min-width:150px}
     .muted{color:var(--muted);font-size:13px;line-height:1.35}
@@ -66,7 +66,7 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>YPay Demo (Firebase Firestore) — Apply → Approve → Wallet</h1>
+    <h1>YPay Demo (Firebase Firestore) — Register → Approve → Login</h1>
     <div class="row" style="gap:8px;align-items:center;justify-content:flex-end;flex:0 0 auto">
       <span class="pill" id="sessionPill">Not logged in</span>
       <button class="btn ghost" id="btnLogout" style="display:none">Logout</button>
@@ -76,7 +76,7 @@
 
 <main>
   <div class="grid">
-    <!-- LEFT: Auth / Apply / Login -->
+    <!-- LEFT: LOGIN / REGISTER -->
     <div class="card">
       <div class="hd"><h2>Access</h2></div>
       <div class="bd">
@@ -87,21 +87,39 @@
 
         <div class="hr"></div>
 
-        <label>Mode</label>
-        <select id="modeSel">
-          <option value="apply">User Apply (Register Request)</option>
-          <option value="userLogin">User Login (Approved users)</option>
-          <option value="adminLogin">Admin Login</option>
-        </select>
+        <div class="tabs">
+          <button class="tab active" data-auth="login">LOGIN</button>
+          <button class="tab" data-auth="register">REGISTER</button>
+        </div>
 
-        <!-- APPLY -->
-        <div id="paneApply" style="margin-top:10px">
-          <h3 style="margin:0 0 6px;font-size:14px">Apply for Account</h3>
-          <p class="muted small">User က apply လုပ်မယ် → Admin approve လုပ်မှ wallet သုံးနိုင်မယ်။</p>
+        <!-- LOGIN -->
+        <div id="paneLogin" style="margin-top:12px">
+          <h3 style="margin:0 0 6px;font-size:14px">Login</h3>
+          <p class="muted small">
+            Phone + PIN နဲ့ဝင်ပါ။ Admin ဟုတ်ရင် Admin functions ပေါ်မယ်၊ User ဟုတ်ရင် User functions ပေါ်မယ်။
+          </p>
+
+          <label>Phone</label>
+          <input id="loginPhone" placeholder="e.g. 09xxxx / +66..." />
+          <label>PIN (4-6 digits)</label>
+          <input id="loginPin" type="password" placeholder="PIN" />
+
+          <button class="btn ok" style="margin-top:12px;width:100%" id="btnLogin">Login</button>
+
+          <div class="hr"></div>
+          <p class="muted small">
+            Admin Demo: <span class="mono">+66633243410</span> / <span class="mono">158062</span>
+          </p>
+        </div>
+
+        <!-- REGISTER (Apply) -->
+        <div id="paneRegister" style="display:none;margin-top:12px">
+          <h3 style="margin:0 0 6px;font-size:14px">Register (Apply)</h3>
+          <p class="muted small">Register လုပ်တာက Apply တင်တာပါ။ Admin approve လုပ်မှ wallet သုံးနိုင်မယ်။</p>
 
           <label>Name</label>
           <input id="applyName" placeholder="Your name" />
-          <label>Phone (Doc ID = Phone)</label>
+          <label>Phone (1 phone = 1 account)</label>
           <input id="applyPhone" placeholder="e.g. 09xxxx / +66..." />
           <label>PIN (4-6 digits)</label>
           <input id="applyPin" type="password" placeholder="e.g. 1234" />
@@ -116,32 +134,6 @@
             <button class="btn dark" id="btnCheck">Check</button>
           </div>
           <div id="statusBox" class="muted small" style="margin-top:8px"></div>
-        </div>
-
-        <!-- USER LOGIN -->
-        <div id="paneUserLogin" style="display:none;margin-top:10px">
-          <h3 style="margin:0 0 6px;font-size:14px">User Login</h3>
-          <p class="muted small">Approved ဖြစ်ပြီး users collection ထဲဝင်ပြီးမှ login ဝင်လို့ရမယ်။</p>
-
-          <label>Phone</label>
-          <input id="uLoginPhone" placeholder="e.g. 09xxxx / +66..." />
-          <label>PIN</label>
-          <input id="uLoginPin" type="password" placeholder="PIN" />
-
-          <button class="btn ok" style="margin-top:12px;width:100%" id="btnUserLogin">Login</button>
-        </div>
-
-        <!-- ADMIN LOGIN -->
-        <div id="paneAdminLogin" style="display:none;margin-top:10px">
-          <h3 style="margin:0 0 6px;font-size:14px">Admin Login</h3>
-          <p class="muted small">Admin phone + PIN နဲ့ဝင်ပါ။</p>
-
-          <label>Admin Phone</label>
-          <input id="aLoginPhone" placeholder="+66633243410" />
-          <label>Admin PIN</label>
-          <input id="aLoginPin" type="password" placeholder="158062" />
-
-          <button class="btn ok" style="margin-top:12px;width:100%" id="btnAdminLogin">Login</button>
         </div>
 
       </div>
@@ -265,14 +257,13 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
-  // Firebase (CDN modules)
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import {
     getFirestore, doc, setDoc, getDoc, updateDoc, addDoc, collection,
     serverTimestamp, runTransaction, query, where, orderBy, limit, getDocs
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // ====== YOUR CONFIG (provided) ======
+  // ====== Firebase config (yours) ======
   const firebaseConfig = {
     apiKey: "AIzaSyAMvSkMNZDaLJQy5FboxP4_i-al4GAKGa4",
     authDomain: "ypay-abb1d.firebaseapp.com",
@@ -283,15 +274,15 @@
     measurementId: "G-42LMHY3PDW"
   };
 
-  // ====== Admin creds (as requested) ======
+  // ====== Admin demo creds ======
   const ADMIN_PHONE = "+66633243410";
   const ADMIN_PIN   = "158062";
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ---------- helpers ----------
   const $ = (id)=>document.getElementById(id);
+
   function toast(msg){
     const el = $("toast");
     el.textContent = msg;
@@ -314,7 +305,7 @@
   }
 
   // ---------- session ----------
-  let session = { role:null, phone:null }; // role: "admin" | "user"
+  let session = { role:null, phone:null }; // "admin" | "user"
   function setSession(role, phone=null){
     session = { role, phone };
     render();
@@ -325,15 +316,18 @@
     toast("Logged out.");
   }
 
-  // ---------- UI mode switch ----------
-  $("modeSel").addEventListener("change", ()=>{
-    const m = $("modeSel").value;
-    $("paneApply").style.display     = (m==="apply") ? "block" : "none";
-    $("paneUserLogin").style.display = (m==="userLogin") ? "block" : "none";
-    $("paneAdminLogin").style.display= (m==="adminLogin") ? "block" : "none";
+  // ---------- AUTH tabs (LOGIN/REGISTER) ----------
+  document.querySelectorAll("[data-auth]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("[data-auth]").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      const tab = btn.getAttribute("data-auth");
+      $("paneLogin").style.display = (tab==="login") ? "block" : "none";
+      $("paneRegister").style.display = (tab==="register") ? "block" : "none";
+    });
   });
 
-  // ---------- apply ----------
+  // ---------- REGISTER = Apply ----------
   $("btnApply").addEventListener("click", async ()=>{
     const name  = ($("applyName").value||"").trim();
     const phone = normPhone($("applyPhone").value);
@@ -344,7 +338,6 @@
     if(!validPin(pin)) return toast("PIN 4-6 digits ဖြစ်ရမယ်။");
 
     try{
-      // one phone = one application (doc id = phone)
       await setDoc(doc(db, "applications", phone), {
         name, phone, pin,
         status: "pending",
@@ -356,7 +349,7 @@
 
       toast("Application submitted. Admin approve စောင့်ပါ။");
       $("checkPhone").value = phone;
-      $("statusBox").textContent = "Submitted. Use Check to see status.";
+      $("statusBox").textContent = "Submitted. Check status below.";
     }catch(e){
       toast(e?.message || "Apply failed.");
     }
@@ -379,33 +372,33 @@
     }
   });
 
-  // ---------- admin login ----------
-  $("btnAdminLogin").addEventListener("click", async ()=>{
-    const phone = normPhone($("aLoginPhone").value);
-    const pin   = ($("aLoginPin").value||"").trim();
+  // ---------- LOGIN (auto detect Admin/User) ----------
+  $("btnLogin").addEventListener("click", async ()=>{
+    const phone = normPhone($("loginPhone").value);
+    const pin   = ($("loginPin").value||"").trim();
 
-    if(phone !== ADMIN_PHONE || pin !== ADMIN_PIN) return toast("Admin credentials မမှန်ပါ။");
-
-    // Optional: verify admin doc exists OR create later with button
-    setSession("admin", ADMIN_PHONE);
-    toast("Admin login success.");
-  });
-
-  // ---------- user login (approved only) ----------
-  $("btnUserLogin").addEventListener("click", async ()=>{
-    const phone = normPhone($("uLoginPhone").value);
-    const pin   = ($("uLoginPin").value||"").trim();
     if(!phone) return toast("Phone ထည့်ပါ။");
     if(!validPin(pin)) return toast("PIN 4-6 digits ဖြစ်ရမယ်။");
 
+    // 1) If matches admin demo creds => admin
+    if(phone === ADMIN_PHONE && pin === ADMIN_PIN){
+      setSession("admin", ADMIN_PHONE);
+      toast("Admin login success.");
+      return;
+    }
+
+    // 2) Otherwise, check Firestore user doc (approved users only)
     try{
       const snap = await getDoc(doc(db,"users",phone));
-      if(!snap.exists()) return toast("User မတွေ့ပါ။ (Approve မဖြစ်သေးလား?)");
+      if(!snap.exists()){
+        toast("Account မတွေ့ပါ။ (Approve မဖြစ်သေးလား?)");
+        return;
+      }
       const u = snap.data();
       if(String(u.pin) !== pin) return toast("PIN မမှန်ပါ။");
-      if(u.role !== "user" && u.role !== "admin") return toast("Invalid role.");
+
+      // role-based UI
       if(u.role === "admin"){
-        // allow admin to login via user login too, but keep role correct
         setSession("admin", phone);
       }else{
         setSession("user", phone);
@@ -468,7 +461,6 @@
   }
 
   async function refreshAdminData(){
-    // counts
     const pending = await fetchPendingApps();
     $("pendingCount").textContent = String(pending.length);
 
@@ -477,7 +469,6 @@
 
     $("appsWrap").innerHTML = renderAppsTable(pending);
 
-    // bind buttons
     document.querySelectorAll("[data-approve]").forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         const phone = normPhone(btn.getAttribute("data-approve"));
@@ -492,7 +483,6 @@
       });
     });
 
-    // ledger
     await refreshLedger();
   }
 
@@ -514,7 +504,6 @@
         const d = appSnap.data();
         if(d.status !== "pending") throw new Error("Not pending.");
 
-        // create user (phone = doc id)
         tx.set(userRef, {
           name: d.name,
           phone: d.phone,
@@ -526,7 +515,6 @@
           approvedBy: session.phone
         }, { merge: false });
 
-        // update application status
         tx.update(appRef, {
           status: "approved",
           reviewedAt: serverTimestamp(),
@@ -660,7 +648,6 @@
 
   async function refreshMyTx(){
     const me = session.phone;
-    // Firestore doesn't support OR easily without composite queries; we do two queries and merge.
     const q1 = query(collection(db,"transactions"), where("from","==",me), orderBy("createdAt","desc"), limit(25));
     const q2 = query(collection(db,"transactions"), where("to","==",me), orderBy("createdAt","desc"), limit(25));
 
@@ -669,7 +656,6 @@
     s1.forEach(s=>list.push({ id:s.id, ...s.data() }));
     s2.forEach(s=>list.push({ id:s.id, ...s.data() }));
 
-    // dedupe and sort
     const map = new Map();
     for(const t of list) map.set(t.id, t);
     const merged = Array.from(map.values()).sort((a,b)=>{
@@ -704,7 +690,6 @@
   }
 
   async function refreshLedger(){
-    // latest 80 tx
     const qy = query(collection(db,"transactions"), orderBy("createdAt","desc"), limit(80));
     const snaps = await getDocs(qy);
     const list = [];
@@ -788,10 +773,8 @@
     }
   }
 
-  // ---------- logout ----------
   $("btnLogout").addEventListener("click", logout);
 
-  // boot
   hookTabs();
   render();
 </script>
