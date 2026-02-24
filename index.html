@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="my">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YPay Demo (Firebase) — Apply → Approve → Wallet</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#fff; --text:#0f172a; --muted:#64748b;
+      --primary:#2563eb; --ok:#16a34a; --danger:#ef4444; --line:#e2e8f0;
+      --shadow:0 10px 25px rgba(15,23,42,.08); --r:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+    header{background:linear-gradient(90deg,#2563eb,#10b981);color:#fff;padding:16px}
+    header .wrap{max-width:1100px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    header h1{margin:0;font-size:16px}
+    .pill{background:rgba(255,255,255,.18);padding:6px 10px;border-radius:999px;font-size:12px}
+    .btn{border:0;border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:700}
+    .btn.primary{background:var(--primary);color:#fff}
+    .btn.ok{background:var(--ok);color:#fff}
+    .btn.danger{background:var(--danger);color:#fff}
+    .btn.dark{background:#0f172a;color:#fff}
+    .btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    main{max-width:1100px;margin:16px auto;padding:0 14px 30px}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media(min-width:980px){.grid{grid-template-columns:380px 1fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+    .hd{padding:14px;border-bottom:1px solid var(--line)}
+    .hd h2{margin:0;font-size:14px}
+    .bd{padding:14px}
+    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px}
+    input, select, textarea{
+      width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;
+      font-size:14px;outline:none;background:#fff;
+    }
+    input:focus, select:focus, textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row > *{flex:1;min-width:150px}
+    .muted{color:var(--muted);font-size:13px;line-height:1.35}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 10px;cursor:pointer;font-weight:800;font-size:12px}
+    .tab.active{background:#0f172a;color:#fff;border-color:#0f172a}
+    table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    th,td{padding:10px;border-bottom:1px solid var(--line);font-size:13px;text-align:left;vertical-align:top}
+    th{background:#f8fafc}
+    tr:last-child td{border-bottom:0}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:900}
+    .tag.pending{background:rgba(37,99,235,.12);color:var(--primary)}
+    .tag.approved{background:rgba(22,163,74,.12);color:var(--ok)}
+    .tag.rejected{background:rgba(239,68,68,.12);color:var(--danger)}
+    .tag.in{background:rgba(22,163,74,.12);color:var(--ok)}
+    .tag.out{background:rgba(239,68,68,.12);color:var(--danger)}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f172a;color:#fff;
+      padding:10px 12px;border-radius:12px;box-shadow:var(--shadow);display:none;max-width:92vw;font-size:13px}
+    .kpi{display:flex;gap:12px;flex-wrap:wrap}
+    .kpi .box{flex:1;min-width:180px;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .kpi .big{font-size:20px;font-weight:900;margin-top:6px}
+    .small{font-size:12px}
+    .warn{color:#b45309;font-weight:800}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>YPay Demo (Firebase Firestore) — Apply → Approve → Wallet</h1>
+    <div class="row" style="gap:8px;align-items:center;justify-content:flex-end;flex:0 0 auto">
+      <span class="pill" id="sessionPill">Not logged in</span>
+      <button class="btn ghost" id="btnLogout" style="display:none">Logout</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- LEFT: Auth / Apply / Login -->
+    <div class="card">
+      <div class="hd"><h2>Access</h2></div>
+      <div class="bd">
+        <p class="muted">
+          ဒီ app က demo ပါ။ Data ကို Firebase Firestore မှာသိမ်းမယ်။<br>
+          <span class="warn">Production အတွက်: Auth/Rules/Cloud Functions မဖြစ်မနေလိုပါတယ်။</span>
+        </p>
+
+        <div class="hr"></div>
+
+        <label>Mode</label>
+        <select id="modeSel">
+          <option value="apply">User Apply (Register Request)</option>
+          <option value="userLogin">User Login (Approved users)</option>
+          <option value="adminLogin">Admin Login</option>
+        </select>
+
+        <!-- APPLY -->
+        <div id="paneApply" style="margin-top:10px">
+          <h3 style="margin:0 0 6px;font-size:14px">Apply for Account</h3>
+          <p class="muted small">User က apply လုပ်မယ် → Admin approve လုပ်မှ wallet သုံးနိုင်မယ်။</p>
+
+          <label>Name</label>
+          <input id="applyName" placeholder="Your name" />
+          <label>Phone (Doc ID = Phone)</label>
+          <input id="applyPhone" placeholder="e.g. 09xxxx / +66..." />
+          <label>PIN (4-6 digits)</label>
+          <input id="applyPin" type="password" placeholder="e.g. 1234" />
+
+          <button class="btn primary" style="margin-top:12px;width:100%" id="btnApply">Submit Application</button>
+
+          <div class="hr"></div>
+
+          <h4 style="margin:0 0 6px;font-size:13px">Check Application Status</h4>
+          <div class="row">
+            <input id="checkPhone" placeholder="Phone to check" />
+            <button class="btn dark" id="btnCheck">Check</button>
+          </div>
+          <div id="statusBox" class="muted small" style="margin-top:8px"></div>
+        </div>
+
+        <!-- USER LOGIN -->
+        <div id="paneUserLogin" style="display:none;margin-top:10px">
+          <h3 style="margin:0 0 6px;font-size:14px">User Login</h3>
+          <p class="muted small">Approved ဖြစ်ပြီး users collection ထဲဝင်ပြီးမှ login ဝင်လို့ရမယ်။</p>
+
+          <label>Phone</label>
+          <input id="uLoginPhone" placeholder="e.g. 09xxxx / +66..." />
+          <label>PIN</label>
+          <input id="uLoginPin" type="password" placeholder="PIN" />
+
+          <button class="btn ok" style="margin-top:12px;width:100%" id="btnUserLogin">Login</button>
+        </div>
+
+        <!-- ADMIN LOGIN -->
+        <div id="paneAdminLogin" style="display:none;margin-top:10px">
+          <h3 style="margin:0 0 6px;font-size:14px">Admin Login</h3>
+          <p class="muted small">Admin phone + PIN နဲ့ဝင်ပါ။</p>
+
+          <label>Admin Phone</label>
+          <input id="aLoginPhone" placeholder="+66633243410" />
+          <label>Admin PIN</label>
+          <input id="aLoginPin" type="password" placeholder="158062" />
+
+          <button class="btn ok" style="margin-top:12px;width:100%" id="btnAdminLogin">Login</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: App content -->
+    <div class="card">
+      <div class="hd"><h2 id="rightTitle">Dashboard</h2></div>
+      <div class="bd">
+        <div id="paneNone" class="muted">Login ဝင်ပြီးမှ functions ပေါ်လာမယ်။</div>
+
+        <!-- USER DASH -->
+        <div id="paneUserDash" style="display:none">
+          <div class="kpi">
+            <div class="box">
+              <div class="muted">My Phone</div>
+              <div class="big mono" id="mePhone">-</div>
+            </div>
+            <div class="box">
+              <div class="muted">Balance (MMK)</div>
+              <div class="big" id="meBal">0</div>
+            </div>
+            <div class="box">
+              <div class="muted">Name</div>
+              <div class="big" style="font-size:16px" id="meName">-</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="tabs">
+            <button class="tab active" data-ut="transfer">Transfer</button>
+            <button class="tab" data-ut="history">History</button>
+          </div>
+
+          <div id="uTab-transfer" style="margin-top:12px">
+            <h3 style="margin:0 0 6px;font-size:14px">Send Money (P2P)</h3>
+            <label>To Phone</label>
+            <input id="toPhone" placeholder="Receiver phone" />
+            <div class="row">
+              <div>
+                <label>Amount</label>
+                <input id="amount" type="number" min="1" step="1" placeholder="1000" />
+              </div>
+              <div>
+                <label>Note (optional)</label>
+                <input id="note" placeholder="For..." />
+              </div>
+            </div>
+            <button class="btn ok" style="margin-top:12px;width:100%" id="btnTransfer">Transfer</button>
+            <p class="muted small" style="margin-top:10px">Demo: balance မလုံလောက်ရင် transfer မလုပ်နိုင်ပါ။</p>
+          </div>
+
+          <div id="uTab-history" style="display:none;margin-top:12px">
+            <h3 style="margin:0 0 8px;font-size:14px">My Transactions</h3>
+            <div id="myTxWrap"></div>
+          </div>
+        </div>
+
+        <!-- ADMIN DASH -->
+        <div id="paneAdminDash" style="display:none">
+          <div class="kpi">
+            <div class="box">
+              <div class="muted">Admin</div>
+              <div class="big mono" id="adminId">-</div>
+            </div>
+            <div class="box">
+              <div class="muted">Pending Applications</div>
+              <div class="big" id="pendingCount">0</div>
+            </div>
+            <div class="box">
+              <div class="muted">Total Users</div>
+              <div class="big" id="userCount">0</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="tabs">
+            <button class="tab active" data-at="apps">Applications</button>
+            <button class="tab" data-at="topup">Top-up</button>
+            <button class="tab" data-at="ledger">Ledger</button>
+          </div>
+
+          <!-- Applications -->
+          <div id="aTab-apps" style="margin-top:12px">
+            <h3 style="margin:0 0 8px;font-size:14px">Pending Applications</h3>
+            <div class="row">
+              <button class="btn dark" id="btnRefreshApps">Refresh</button>
+              <button class="btn danger" id="btnSeedAdmin">Create Admin Doc (once)</button>
+            </div>
+            <p class="muted small" style="margin-top:8px">
+              * “Create Admin Doc” ကို တစ်ခါပဲနှိပ်ပါ (users/<span class="mono">+66633243410</span> doc ဖန်တီးပေးမယ်)။
+            </p>
+            <div id="appsWrap" style="margin-top:10px"></div>
+          </div>
+
+          <!-- Topup -->
+          <div id="aTab-topup" style="display:none;margin-top:12px">
+            <h3 style="margin:0 0 8px;font-size:14px">Admin Top-up (Add balance)</h3>
+            <label>User Phone</label>
+            <input id="topPhone" placeholder="Approved user's phone" />
+            <label>Amount (MMK)</label>
+            <input id="topAmount" type="number" min="1" step="1" placeholder="10000" />
+            <button class="btn ok" style="margin-top:12px;width:100%" id="btnTopup">Top-up</button>
+            <p class="muted small" style="margin-top:10px">Top-up ကို transaction log ထဲမှာ SYSTEM entry အနေနဲ့ထည့်ပေးမယ်။</p>
+          </div>
+
+          <!-- Ledger -->
+          <div id="aTab-ledger" style="display:none;margin-top:12px">
+            <h3 style="margin:0 0 8px;font-size:14px">Recent Transactions (Ledger)</h3>
+            <div id="ledgerWrap"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  // Firebase (CDN modules)
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getFirestore, doc, setDoc, getDoc, updateDoc, addDoc, collection,
+    serverTimestamp, runTransaction, query, where, orderBy, limit, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  // ====== YOUR CONFIG (provided) ======
+  const firebaseConfig = {
+    apiKey: "AIzaSyAMvSkMNZDaLJQy5FboxP4_i-al4GAKGa4",
+    authDomain: "ypay-abb1d.firebaseapp.com",
+    projectId: "ypay-abb1d",
+    storageBucket: "ypay-abb1d.firebasestorage.app",
+    messagingSenderId: "248647560461",
+    appId: "1:248647560461:web:abaa0ee98bd5280b891444",
+    measurementId: "G-42LMHY3PDW"
+  };
+
+  // ====== Admin creds (as requested) ======
+  const ADMIN_PHONE = "+66633243410";
+  const ADMIN_PIN   = "158062";
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ---------- helpers ----------
+  const $ = (id)=>document.getElementById(id);
+  function toast(msg){
+    const el = $("toast");
+    el.textContent = msg;
+    el.style.display="block";
+    clearTimeout(toast._t);
+    toast._t=setTimeout(()=>el.style.display="none", 2600);
+  }
+  function money(n){ return (Number(n)||0).toLocaleString("en-US"); }
+  function normPhone(p){ return (p||"").trim().replace(/\s+/g,""); }
+  function validPin(pin){ return /^\d{4,6}$/.test((pin||"").trim()); }
+  function escapeHtml(s){
+    return String(s||"")
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+  function tagStatus(status){
+    if(status==="approved") return `<span class="tag approved">APPROVED</span>`;
+    if(status==="rejected") return `<span class="tag rejected">REJECTED</span>`;
+    return `<span class="tag pending">PENDING</span>`;
+  }
+
+  // ---------- session ----------
+  let session = { role:null, phone:null }; // role: "admin" | "user"
+  function setSession(role, phone=null){
+    session = { role, phone };
+    render();
+  }
+  function logout(){
+    session = { role:null, phone:null };
+    render();
+    toast("Logged out.");
+  }
+
+  // ---------- UI mode switch ----------
+  $("modeSel").addEventListener("change", ()=>{
+    const m = $("modeSel").value;
+    $("paneApply").style.display     = (m==="apply") ? "block" : "none";
+    $("paneUserLogin").style.display = (m==="userLogin") ? "block" : "none";
+    $("paneAdminLogin").style.display= (m==="adminLogin") ? "block" : "none";
+  });
+
+  // ---------- apply ----------
+  $("btnApply").addEventListener("click", async ()=>{
+    const name  = ($("applyName").value||"").trim();
+    const phone = normPhone($("applyPhone").value);
+    const pin   = ($("applyPin").value||"").trim();
+
+    if(!name) return toast("Name ထည့်ပါ။");
+    if(!phone) return toast("Phone ထည့်ပါ။");
+    if(!validPin(pin)) return toast("PIN 4-6 digits ဖြစ်ရမယ်။");
+
+    try{
+      // one phone = one application (doc id = phone)
+      await setDoc(doc(db, "applications", phone), {
+        name, phone, pin,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        reviewedAt: null,
+        reviewedBy: null,
+        rejectReason: null
+      }, { merge: false });
+
+      toast("Application submitted. Admin approve စောင့်ပါ။");
+      $("checkPhone").value = phone;
+      $("statusBox").textContent = "Submitted. Use Check to see status.";
+    }catch(e){
+      toast(e?.message || "Apply failed.");
+    }
+  });
+
+  $("btnCheck").addEventListener("click", async ()=>{
+    const phone = normPhone($("checkPhone").value);
+    if(!phone) return toast("Phone ထည့်ပါ။");
+    try{
+      const snap = await getDoc(doc(db,"applications",phone));
+      if(!snap.exists()){
+        $("statusBox").innerHTML = `<span class="tag rejected">NOT FOUND</span> Application မတွေ့ပါ။`;
+        return;
+      }
+      const d = snap.data();
+      const reason = d.rejectReason ? ` — Reason: ${escapeHtml(d.rejectReason)}` : "";
+      $("statusBox").innerHTML = `${tagStatus(d.status)} <span class="mono">${escapeHtml(phone)}</span>${reason}`;
+    }catch(e){
+      toast(e?.message || "Check failed.");
+    }
+  });
+
+  // ---------- admin login ----------
+  $("btnAdminLogin").addEventListener("click", async ()=>{
+    const phone = normPhone($("aLoginPhone").value);
+    const pin   = ($("aLoginPin").value||"").trim();
+
+    if(phone !== ADMIN_PHONE || pin !== ADMIN_PIN) return toast("Admin credentials မမှန်ပါ။");
+
+    // Optional: verify admin doc exists OR create later with button
+    setSession("admin", ADMIN_PHONE);
+    toast("Admin login success.");
+  });
+
+  // ---------- user login (approved only) ----------
+  $("btnUserLogin").addEventListener("click", async ()=>{
+    const phone = normPhone($("uLoginPhone").value);
+    const pin   = ($("uLoginPin").value||"").trim();
+    if(!phone) return toast("Phone ထည့်ပါ။");
+    if(!validPin(pin)) return toast("PIN 4-6 digits ဖြစ်ရမယ်။");
+
+    try{
+      const snap = await getDoc(doc(db,"users",phone));
+      if(!snap.exists()) return toast("User မတွေ့ပါ။ (Approve မဖြစ်သေးလား?)");
+      const u = snap.data();
+      if(String(u.pin) !== pin) return toast("PIN မမှန်ပါ။");
+      if(u.role !== "user" && u.role !== "admin") return toast("Invalid role.");
+      if(u.role === "admin"){
+        // allow admin to login via user login too, but keep role correct
+        setSession("admin", phone);
+      }else{
+        setSession("user", phone);
+      }
+      toast("Login success.");
+    }catch(e){
+      toast(e?.message || "Login failed.");
+    }
+  });
+
+  // ---------- admin: create admin doc once ----------
+  $("btnSeedAdmin").addEventListener("click", async ()=>{
+    if(session.role!=="admin") return toast("Admin only.");
+    try{
+      await setDoc(doc(db,"users", ADMIN_PHONE), {
+        name: "Admin",
+        phone: ADMIN_PHONE,
+        role: "admin",
+        balance: 0,
+        pin: ADMIN_PIN,
+        createdAt: serverTimestamp(),
+        approvedAt: serverTimestamp(),
+        approvedBy: ADMIN_PHONE
+      }, { merge: true });
+      toast("Admin doc created/updated.");
+      render();
+    }catch(e){
+      toast(e?.message || "Failed.");
+    }
+  });
+
+  // ---------- admin: fetch pending apps ----------
+  async function fetchPendingApps(){
+    const qy = query(collection(db,"applications"), where("status","==","pending"), orderBy("createdAt","desc"), limit(50));
+    const snaps = await getDocs(qy);
+    const items = [];
+    snaps.forEach(s=>items.push({ id:s.id, ...s.data() }));
+    return items;
+  }
+
+  function renderAppsTable(apps){
+    if(apps.length===0) return `<p class="muted small">No pending applications.</p>`;
+    const rows = apps.map(a=>`
+      <tr>
+        <td class="mono">${escapeHtml(a.phone)}</td>
+        <td>${escapeHtml(a.name)}</td>
+        <td>${tagStatus(a.status||"pending")}</td>
+        <td class="small muted">${a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString() : "-"}</td>
+        <td>
+          <button class="btn ok" data-approve="${escapeHtml(a.phone)}">Approve</button>
+          <button class="btn danger" data-reject="${escapeHtml(a.phone)}">Reject</button>
+        </td>
+      </tr>
+    `).join("");
+
+    return `<table>
+      <thead><tr><th>Phone</th><th>Name</th><th>Status</th><th>Applied</th><th>Action</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  async function refreshAdminData(){
+    // counts
+    const pending = await fetchPendingApps();
+    $("pendingCount").textContent = String(pending.length);
+
+    const usersSnap = await getDocs(query(collection(db,"users"), limit(200)));
+    $("userCount").textContent = String(usersSnap.size);
+
+    $("appsWrap").innerHTML = renderAppsTable(pending);
+
+    // bind buttons
+    document.querySelectorAll("[data-approve]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const phone = normPhone(btn.getAttribute("data-approve"));
+        await approveApp(phone);
+      });
+    });
+    document.querySelectorAll("[data-reject]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const phone = normPhone(btn.getAttribute("data-reject"));
+        const reason = prompt("Reject reason (optional):") || "";
+        await rejectApp(phone, reason);
+      });
+    });
+
+    // ledger
+    await refreshLedger();
+  }
+
+  $("btnRefreshApps").addEventListener("click", async ()=>{
+    if(session.role!=="admin") return toast("Admin only.");
+    try{ await refreshAdminData(); toast("Refreshed."); }catch(e){ toast(e?.message || "Failed."); }
+  });
+
+  // ---------- admin approve / reject ----------
+  async function approveApp(phone){
+    if(session.role!=="admin") return toast("Admin only.");
+    const appRef  = doc(db,"applications",phone);
+    const userRef = doc(db,"users",phone);
+
+    try{
+      await runTransaction(db, async (tx)=>{
+        const appSnap = await tx.get(appRef);
+        if(!appSnap.exists()) throw new Error("Application not found.");
+        const d = appSnap.data();
+        if(d.status !== "pending") throw new Error("Not pending.");
+
+        // create user (phone = doc id)
+        tx.set(userRef, {
+          name: d.name,
+          phone: d.phone,
+          role: "user",
+          balance: 0,
+          pin: d.pin,
+          createdAt: d.createdAt || serverTimestamp(),
+          approvedAt: serverTimestamp(),
+          approvedBy: session.phone
+        }, { merge: false });
+
+        // update application status
+        tx.update(appRef, {
+          status: "approved",
+          reviewedAt: serverTimestamp(),
+          reviewedBy: session.phone,
+          rejectReason: null
+        });
+      });
+
+      toast("Approved.");
+      await refreshAdminData();
+    }catch(e){
+      toast(e?.message || "Approve failed.");
+    }
+  }
+
+  async function rejectApp(phone, reason){
+    if(session.role!=="admin") return toast("Admin only.");
+    try{
+      await updateDoc(doc(db,"applications",phone), {
+        status: "rejected",
+        reviewedAt: serverTimestamp(),
+        reviewedBy: session.phone,
+        rejectReason: reason || null
+      });
+      toast("Rejected.");
+      await refreshAdminData();
+    }catch(e){
+      toast(e?.message || "Reject failed.");
+    }
+  }
+
+  // ---------- admin topup ----------
+  $("btnTopup").addEventListener("click", async ()=>{
+    if(session.role!=="admin") return toast("Admin only.");
+    const phone = normPhone($("topPhone").value);
+    const amount = Math.floor(Number($("topAmount").value));
+    if(!phone) return toast("User phone ထည့်ပါ။");
+    if(!Number.isFinite(amount) || amount<=0) return toast("Amount > 0 ဖြစ်ရမယ်။");
+
+    const userRef = doc(db,"users",phone);
+
+    try{
+      await runTransaction(db, async (tx)=>{
+        const snap = await tx.get(userRef);
+        if(!snap.exists()) throw new Error("User not found (approved only).");
+        const bal = Number(snap.data().balance||0);
+        tx.update(userRef, { balance: bal + amount });
+      });
+
+      await addDoc(collection(db,"transactions"), {
+        type: "sys",
+        from: "SYSTEM",
+        to: phone,
+        amount,
+        note: "Admin topup",
+        createdAt: serverTimestamp()
+      });
+
+      toast("Top-up success.");
+      $("topAmount").value = "";
+      await refreshAdminData();
+    }catch(e){
+      toast(e?.message || "Top-up failed.");
+    }
+  });
+
+  // ---------- user transfer ----------
+  $("btnTransfer").addEventListener("click", async ()=>{
+    if(session.role!=="user") return toast("User only.");
+    const from = session.phone;
+    const to = normPhone($("toPhone").value);
+    const amount = Math.floor(Number($("amount").value));
+    const note = ($("note").value||"").trim().slice(0,80);
+
+    if(!to) return toast("To phone ထည့်ပါ။");
+    if(to === from) return toast("ကိုယ့်နံပါတ်ကို မလွှဲနိုင်ပါ။");
+    if(!Number.isFinite(amount) || amount<=0) return toast("Amount > 0 ဖြစ်ရမယ်။");
+
+    const fromRef = doc(db,"users",from);
+    const toRef   = doc(db,"users",to);
+
+    try{
+      await runTransaction(db, async (tx)=>{
+        const fromSnap = await tx.get(fromRef);
+        const toSnap   = await tx.get(toRef);
+        if(!fromSnap.exists()) throw new Error("Sender not found.");
+        if(!toSnap.exists()) throw new Error("Receiver not found (must be approved user).");
+
+        const fromBal = Number(fromSnap.data().balance||0);
+        const toBal   = Number(toSnap.data().balance||0);
+        if(fromBal < amount) throw new Error("Insufficient balance.");
+
+        tx.update(fromRef, { balance: fromBal - amount });
+        tx.update(toRef,   { balance: toBal + amount });
+      });
+
+      await addDoc(collection(db,"transactions"), {
+        type: "p2p",
+        from, to, amount, note,
+        createdAt: serverTimestamp()
+      });
+
+      $("toPhone").value = "";
+      $("amount").value = "";
+      $("note").value = "";
+      toast("Transfer success.");
+      await refreshUserDash();
+    }catch(e){
+      toast(e?.message || "Transfer failed.");
+    }
+  });
+
+  // ---------- history / ledger ----------
+  function txTag(t, me){
+    if(t.type==="sys") return `<span class="tag pending">SYSTEM</span>`;
+    if(t.from===me) return `<span class="tag out">OUT</span>`;
+    if(t.to===me) return `<span class="tag in">IN</span>`;
+    return `<span class="tag pending">P2P</span>`;
+  }
+
+  async function refreshUserDash(){
+    if(session.role!=="user") return;
+    const snap = await getDoc(doc(db,"users",session.phone));
+    if(!snap.exists()){ toast("User missing."); return logout(); }
+    const u = snap.data();
+    $("mePhone").textContent = u.phone || session.phone;
+    $("meBal").textContent   = money(u.balance||0);
+    $("meName").textContent  = u.name || "-";
+    await refreshMyTx();
+  }
+
+  async function refreshMyTx(){
+    const me = session.phone;
+    // Firestore doesn't support OR easily without composite queries; we do two queries and merge.
+    const q1 = query(collection(db,"transactions"), where("from","==",me), orderBy("createdAt","desc"), limit(25));
+    const q2 = query(collection(db,"transactions"), where("to","==",me), orderBy("createdAt","desc"), limit(25));
+
+    const [s1,s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    const list = [];
+    s1.forEach(s=>list.push({ id:s.id, ...s.data() }));
+    s2.forEach(s=>list.push({ id:s.id, ...s.data() }));
+
+    // dedupe and sort
+    const map = new Map();
+    for(const t of list) map.set(t.id, t);
+    const merged = Array.from(map.values()).sort((a,b)=>{
+      const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return tb - ta;
+    }).slice(0, 50);
+
+    if(merged.length===0){
+      $("myTxWrap").innerHTML = `<p class="muted small">No transactions yet.</p>`;
+      return;
+    }
+
+    const rows = merged.map(t=>{
+      const time = t.createdAt?.toDate ? t.createdAt.toDate().toLocaleString() : "-";
+      const other = (t.type==="sys") ? t.from : (t.from===me ? t.to : t.from);
+      const dir = (t.type==="sys") ? "SYSTEM" : (t.from===me ? "Sent" : "Received");
+      return `<tr>
+        <td>${txTag(t,me)}</td>
+        <td class="small muted">${time}</td>
+        <td>${dir}</td>
+        <td class="mono">${escapeHtml(other||"-")}</td>
+        <td>${money(t.amount||0)}</td>
+        <td class="small">${escapeHtml(t.note||"")}</td>
+      </tr>`;
+    }).join("");
+
+    $("myTxWrap").innerHTML = `<table>
+      <thead><tr><th>Type</th><th>Time</th><th>Dir</th><th>Other</th><th>Amount</th><th>Note</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  async function refreshLedger(){
+    // latest 80 tx
+    const qy = query(collection(db,"transactions"), orderBy("createdAt","desc"), limit(80));
+    const snaps = await getDocs(qy);
+    const list = [];
+    snaps.forEach(s=>list.push({ id:s.id, ...s.data() }));
+
+    if(list.length===0){
+      $("ledgerWrap").innerHTML = `<p class="muted small">No transactions yet.</p>`;
+      return;
+    }
+
+    const rows = list.map(t=>{
+      const time = t.createdAt?.toDate ? t.createdAt.toDate().toLocaleString() : "-";
+      return `<tr>
+        <td class="small muted">${time}</td>
+        <td>${escapeHtml(t.type||"-")}</td>
+        <td class="mono">${escapeHtml(t.from||"-")}</td>
+        <td class="mono">${escapeHtml(t.to||"-")}</td>
+        <td>${money(t.amount||0)}</td>
+        <td class="small">${escapeHtml(t.note||"")}</td>
+      </tr>`;
+    }).join("");
+
+    $("ledgerWrap").innerHTML = `<table>
+      <thead><tr><th>Time</th><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Note</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ---------- Tabs ----------
+  function hookTabs(){
+    // user tabs
+    document.querySelectorAll("[data-ut]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.querySelectorAll("[data-ut]").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        const tab = btn.getAttribute("data-ut");
+        ["transfer","history"].forEach(k=>{
+          $("uTab-"+k).style.display = (k===tab) ? "block" : "none";
+        });
+        if(tab==="history") refreshMyTx();
+      });
+    });
+    // admin tabs
+    document.querySelectorAll("[data-at]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        document.querySelectorAll("[data-at]").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        const tab = btn.getAttribute("data-at");
+        ["apps","topup","ledger"].forEach(k=>{
+          $("aTab-"+k).style.display = (k===tab) ? "block" : "none";
+        });
+        if(tab==="apps") await refreshAdminData();
+        if(tab==="ledger") await refreshLedger();
+      });
+    });
+  }
+
+  // ---------- Render ----------
+  function render(){
+    $("btnLogout").style.display = session.role ? "inline-block" : "none";
+    $("sessionPill").textContent =
+      session.role==="admin" ? `Logged in: ADMIN ${session.phone}` :
+      session.role==="user"  ? `Logged in: USER ${session.phone}`  :
+      "Not logged in";
+
+    $("paneNone").style.display = session.role ? "none" : "block";
+    $("paneUserDash").style.display = session.role==="user" ? "block" : "none";
+    $("paneAdminDash").style.display = session.role==="admin" ? "block" : "none";
+
+    $("rightTitle").textContent =
+      session.role==="admin" ? "Admin Dashboard" :
+      session.role==="user"  ? "User Wallet" :
+      "Dashboard";
+
+    if(session.role==="admin"){
+      $("adminId").textContent = session.phone || ADMIN_PHONE;
+      refreshAdminData().catch(()=>{});
+    }
+    if(session.role==="user"){
+      refreshUserDash().catch(()=>{});
+    }
+  }
+
+  // ---------- logout ----------
+  $("btnLogout").addEventListener("click", logout);
+
+  // boot
+  hookTabs();
+  render();
+</script>
+</body>
+</html>
