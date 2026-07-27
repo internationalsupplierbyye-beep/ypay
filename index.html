@@ -59,23 +59,28 @@
     .kpi .big{font-size:22px;font-weight:900;margin-top:6px}
     .small{font-size:12px}
     
-    /* QR and Scanner styles */
+    /* QR styles */
     #qrCode{margin-top: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;}
-    #qrCode img { border: 4px solid #fff; box-shadow: var(--shadow); border-radius: 12px; max-width: 200px; }
-    #reader { width: 100%; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 12px; background: #fafafa;}
-    .qr-desc {font-size: 15px; margin-top: 12px; color: var(--text); font-weight: 700;}
+    #qrCode img { border: 4px solid #fff; box-shadow: var(--shadow); border-radius: 12px; max-width: 250px; }
+    .qr-desc {font-size: 16px; margin-top: 16px; color: var(--text); font-weight: 700;}
     
-    /* Scanner Modal */
+    /* BIG Scanner Modal */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 10000;
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 10000;
+      backdrop-filter: blur(6px);
     }
     .modal-content {
-      background: #fff; padding: 20px; border-radius: 16px; max-width: 90%; width: 450px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+      background: #fff; padding: 24px; border-radius: 20px; 
+      width: 96%; max-width: 600px; /* Made the modal wider */
+      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+      display: flex; flex-direction: column;
     }
-    .modal-content h3 { margin-top: 0; }
+    .modal-content h3 { margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 5px;}
+    #reader { 
+      width: 100%; border: 3px solid var(--primary); border-radius: 16px; 
+      overflow: hidden; margin-bottom: 16px; background: #000;
+    }
   </style>
 </head>
 <body>
@@ -149,7 +154,9 @@
 
           <!-- TRANSFER -->
           <div id="uTab-transfer" style="margin-top:16px">
-            <button class="btn dark" style="margin-bottom:16px; width:100%; padding:12px" id="btnOpenScanner">Scan QR to Transfer</button>
+            <!-- Big Scan Button -->
+            <button class="btn dark" style="margin-bottom:16px; width:100%; padding:24px; font-size:18px; font-weight:900; background:linear-gradient(90deg,#2563eb,#10b981); border:none; box-shadow: var(--shadow); border-radius:16px;" id="btnOpenScanner">📷 SCAN QR TO TRANSFER</button>
+            
             <div class="row">
               <div>
                 <label>To Phone (or scan)</label>
@@ -169,11 +176,15 @@
                 <input id="note" placeholder="Optional" />
               </div>
             </div>
-            <button class="btn ok" style="margin-top:16px;width:100%" id="btnTransfer">Transfer</button>
+            <button class="btn ok" style="margin-top:16px;width:100%; padding: 14px; font-size: 16px;" id="btnTransfer">Transfer</button>
           </div>
 
           <!-- RECEIVE -->
           <div id="uTab-receive" style="display:none;margin-top:16px">
+            <div class="row" style="margin-bottom:12px;">
+               <input id="receiveAmount" type="number" placeholder="Amount (Optional) - ငွေပမာဏ (ရွေးချယ်ရန်)" />
+               <button class="btn dark" style="flex:none; padding:10px 16px;" onclick="generateMyQr()">Update QR</button>
+            </div>
             <div class="muted small" style="text-align: center; margin-bottom: 8px;">Show this QR to receive money</div>
             <div id="qrCode"></div>
           </div>
@@ -248,13 +259,13 @@
   </div>
 </main>
 
-<!-- SCANNER MODAL -->
+<!-- BIG SCANNER MODAL -->
 <div class="modal-overlay" id="scannerModal">
   <div class="modal-content">
-    <h3>Scan HAPPY PAY QR</h3>
-    <div class="muted small" style="margin-bottom:10px">Allow camera access if prompted.</div>
+    <h3>📱 Scan HAPPY PAY QR</h3>
+    <div class="muted small" style="text-align:center; margin-bottom:12px;">Center the QR code in the frame below</div>
     <div id="reader"></div>
-    <button class="btn danger" style="width: 100%" id="btnCloseScanner">Close Scanner</button>
+    <button class="btn danger" style="width: 100%; padding:14px; font-size:16px;" id="btnCloseScanner">Close Scanner</button>
   </div>
 </div>
 
@@ -262,7 +273,7 @@
 
 <!-- QR and Scanner Libs -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -336,7 +347,7 @@
       btn.classList.add("active");
       const tab = btn.getAttribute("data-ut");
       ["transfer","receive","history"].forEach(k=>{ $("uTab-"+k).style.display = (k===tab) ? "block" : "none"; });
-      if(tab==="receive") generateMyQr();
+      if(tab==="receive") window.generateMyQr();
       if(tab==="history") refreshMyTx().catch(()=>{});
     });
   });
@@ -450,34 +461,60 @@
     $("myTxWrap").innerHTML = `<table><tbody>${rows}</tbody></table>`;
   }
 
-  // --- QR Generator ---
-  function generateMyQr() {
+  // --- QR Generator (With Amount) ---
+  window.generateMyQr = function() {
     if(!session.phone) return;
     $("qrCode").innerHTML = ''; 
-    QRCode.toDataURL(session.phone, { width: 250, margin: 2, color: { dark: "#0f172a", light: "#ffffff" } }, function (err, url) {
-      if (err) return toast("QR Code Error");
-      const img = document.createElement("img");
-      img.src = url;
-      $("qrCode").appendChild(img);
-      const desc = document.createElement("div");
-      desc.className = "qr-desc mono"; desc.textContent = session.phone;
-      $("qrCode").appendChild(desc);
+    
+    const amt = $("receiveAmount") ? $("receiveAmount").value : "";
+    const qrText = amt ? `${session.phone}|${amt}` : session.phone;
+
+    new QRCode($("qrCode"), {
+      text: qrText,
+      width: 220,
+      height: 220,
+      colorDark : "#0f172a",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.H
     });
+
+    setTimeout(() => {
+      const desc = document.createElement("div");
+      desc.className = "qr-desc mono"; 
+      desc.style.textAlign = "center";
+      desc.innerHTML = amt ? `${session.phone}<br><span style="color:var(--ok); font-size:18px;">${money(amt)} MMK</span>` : session.phone;
+      $("qrCode").appendChild(desc);
+    }, 150);
   }
 
-  // --- QR Scanner ---
+  // --- QR Scanner (Big UI & Parse Amount) ---
   let html5QrcodeScanner = null;
   function onScanSuccess(decodedText) {
     stopScanner();
-    $("toPhone").value = normPhone(decodedText);
+    
+    // Parse phone and amount from QR (separated by |)
+    const parts = decodedText.split("|");
+    const phone = normPhone(parts[0]);
+    $("toPhone").value = phone;
+
+    if(parts.length > 1 && parts[1]) {
+       $("amount").value = parseInt(parts[1]);
+    } else {
+       $("amount").value = "";
+    }
+
     toast("Scanned Successfully.");
-    lookupReceiverName($("toPhone").value); 
+    lookupReceiverName(phone); 
   }
+
   function openScanner() {
     $("scannerModal").style.display = 'flex';
-    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+    // Make qrbox dynamic based on window size for a big, clear scanning area
+    let boxSize = Math.min(window.innerWidth * 0.75, 400); 
+    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: boxSize, height: boxSize} }, false);
     html5QrcodeScanner.render(onScanSuccess);
   }
+
   function stopScanner() {
     if (html5QrcodeScanner) { html5QrcodeScanner.clear().catch(()=>{}); html5QrcodeScanner = null; }
     $("scannerModal").style.display = 'none';
