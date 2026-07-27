@@ -30,12 +30,12 @@
     .hd{padding:14px;border-bottom:1px solid var(--line)}
     .hd h2{margin:0;font-size:14px}
     .bd{padding:14px}
-    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px}
-    input, textarea{
+    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px; font-weight: 600;}
+    input, textarea, select {
       width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;
-      font-size:14px;outline:none;background:#fff;
+      font-size:14px;outline:none;background:#fff; font-family: inherit;
     }
-    input:focus, textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+    input:focus, textarea:focus, select:focus {border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .row > *{flex:1;min-width:150px}
     .muted{color:var(--muted);font-size:13px;line-height:1.35}
@@ -54,6 +54,8 @@
     .tag.terminated{background:rgba(239,68,68,.15);color:#b91c1c}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f172a;color:#fff;
       padding:10px 12px;border-radius:12px;box-shadow:var(--shadow);display:none;max-width:92vw;font-size:13px;z-index:9999}
+    
+    /* KPI Styles */
     .kpi{display:flex;gap:12px;flex-wrap:wrap}
     .kpi .box{flex:1;min-width:140px;border:1px solid var(--line);border-radius:14px;padding:16px 12px}
     .kpi .big{font-size:22px;font-weight:900;margin-top:6px}
@@ -64,7 +66,7 @@
     #qrCode img { border: 4px solid #fff; box-shadow: var(--shadow); border-radius: 12px; max-width: 250px; }
     .qr-desc {font-size: 16px; margin-top: 16px; color: var(--text); font-weight: 700;}
     
-    /* BIG Scanner Modal */
+    /* BIG Scanner & Modals */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 10000;
@@ -72,10 +74,11 @@
     }
     .modal-content {
       background: #fff; padding: 24px; border-radius: 20px; 
-      width: 96%; max-width: 600px; /* Made the modal wider */
+      width: 96%; max-width: 600px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.3);
       display: flex; flex-direction: column;
     }
+    .modal-content.mini { max-width: 400px; }
     .modal-content h3 { margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 5px;}
     #reader { 
       width: 100%; border: 3px solid var(--primary); border-radius: 16px; 
@@ -129,23 +132,32 @@
 
     <!-- RIGHT: DASHBOARD -->
     <div class="card">
-      <div class="hd"><h2 id="rightTitle">Dashboard</h2></div>
+      <div class="hd">
+        <h2 id="rightTitle" style="display:flex; justify-content:space-between; align-items:center;">
+          Dashboard
+          <span id="headerPhone" class="mono muted" style="font-size:12px;"></span>
+        </h2>
+      </div>
       <div class="bd">
         <div id="paneNone" class="muted">Please login to access your account.</div>
 
         <!-- USER DASH -->
         <div id="paneUserDash" style="display:none">
+          <!-- Multi-Wallet KPI -->
           <div class="kpi">
-            <div class="box">
-              <div class="muted">Phone</div>
-              <div class="big mono" id="mePhone">-</div>
-            </div>
-            <div class="box">
-              <div class="muted">Balance</div>
+            <div class="box" style="border-left: 4px solid var(--primary);">
+              <div class="muted">Main Wallet</div>
               <div class="big" id="meBal">0 <span style="font-size:14px">MMK</span></div>
             </div>
+            <div class="box" style="border-left: 4px solid var(--ok);">
+              <div class="muted">Wallet 2</div>
+              <div class="big" id="meBal2">0 <span style="font-size:14px">MMK</span></div>
+            </div>
           </div>
+          <button class="btn ghost" style="width:100%; margin-top:12px; margin-bottom:8px; color:var(--text); border: 2px dashed var(--line);" onclick="openInternalTransfer()">⇄ Move Money Between Wallets</button>
+          
           <div class="hr"></div>
+          
           <div class="tabs">
             <button class="tab active" data-ut="transfer">Transfer</button>
             <button class="tab" data-ut="receive">Receive</button>
@@ -157,6 +169,14 @@
             <!-- Big Scan Button -->
             <button class="btn dark" style="margin-bottom:16px; width:100%; padding:24px; font-size:18px; font-weight:900; background:linear-gradient(90deg,#2563eb,#10b981); border:none; box-shadow: var(--shadow); border-radius:16px;" id="btnOpenScanner">📷 SCAN QR TO TRANSFER</button>
             
+            <div style="margin-bottom: 12px;">
+              <label>Transfer From</label>
+              <select id="transferFromWallet">
+                <option value="main">Main Wallet</option>
+                <option value="wallet2">Wallet 2</option>
+              </select>
+            </div>
+            
             <div class="row">
               <div>
                 <label>To Phone (or scan)</label>
@@ -166,6 +186,7 @@
                 Receiver: <b id="toName">-</b>
               </div>
             </div>
+            
             <div class="row">
               <div>
                 <label>Amount (MMK)</label>
@@ -204,11 +225,11 @@
               <div class="big mono" id="adminPhoneDash">-</div>
             </div>
             <div class="box">
-              <div class="muted">Pending</div>
+              <div class="muted">Pending Apps</div>
               <div class="big" id="adminPendingCount">0</div>
             </div>
             <div class="box">
-              <div class="muted">Users</div>
+              <div class="muted">Total Users</div>
               <div class="big" id="adminUsersCount">0</div>
             </div>
           </div>
@@ -216,12 +237,11 @@
           <div class="tabs" style="margin-bottom: 12px;">
             <button class="tab active" data-at="applications">Applications</button>
             <button class="tab" data-at="users">Users</button>
-            <button class="tab" data-at="topup">Top-up</button>
             <button class="tab" data-at="ledger">Ledger</button>
           </div>
 
           <div class="row" style="margin-bottom: 16px;">
-             <button class="btn dark" onclick="refreshAdminDash()" style="flex:1">Refresh</button>
+             <button class="btn dark" onclick="refreshAdminDash()" style="flex:1">Refresh Stats</button>
              <button class="btn danger" onclick="createAdminDoc()" style="flex:1">Create Admin Doc</button>
           </div>
 
@@ -237,27 +257,40 @@
             <div class="row" style="margin-bottom:16px;">
                <input id="adminSearchPhone" placeholder="Search phone (exact)" style="max-width: 250px;" />
                <button class="btn dark" style="flex:none" onclick="searchAdminUsers()">Search</button>
-               <button class="btn dark" style="flex:none" onclick="loadAllUsers()">Refresh List</button>
+               <button class="btn dark" style="flex:none" onclick="loadAllUsers()">Load All Users</button>
             </div>
             <div id="adminUsersWrap" style="overflow-x: auto;"></div>
-          </div>
-
-          <!-- Admin Tab: Top-up -->
-          <div id="aTab-topup" style="display:none; margin-top:12px">
-            <p class="muted">Go to 'Users' tab and click on the specific user's Action buttons to Top-up or Deduct.</p>
           </div>
 
           <!-- Admin Tab: Ledger -->
           <div id="aTab-ledger" style="display:none; margin-top:12px">
             <div id="adminLedgerWrap" style="overflow-x: auto;"></div>
           </div>
-
         </div>
         
       </div>
     </div>
   </div>
 </main>
+
+<!-- INTERNAL TRANSFER MODAL -->
+<div class="modal-overlay" id="internalModal">
+  <div class="modal-content mini">
+    <h3>⇄ Move Funds</h3>
+    <label>Transfer Path</label>
+    <select id="intFrom">
+       <option value="main">Main Wallet ➔ Wallet 2</option>
+       <option value="wallet2">Wallet 2 ➔ Main Wallet</option>
+    </select>
+    <br>
+    <label>Amount (MMK)</label>
+    <input id="intAmount" type="number" placeholder="Enter amount to move" />
+    <div class="row" style="margin-top:20px">
+       <button class="btn ghost" style="color:var(--text); border-color:var(--line)" onclick="document.getElementById('internalModal').style.display='none'">Cancel</button>
+       <button class="btn ok" onclick="doInternalTransfer()">Confirm Move</button>
+    </div>
+  </div>
+</div>
 
 <!-- BIG SCANNER MODAL -->
 <div class="modal-overlay" id="scannerModal">
@@ -357,7 +390,7 @@
       document.querySelectorAll("[data-at]").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
       const tab = btn.getAttribute("data-at");
-      ["applications","users","topup","ledger"].forEach(k=>{
+      ["applications","users","ledger"].forEach(k=>{
         $("aTab-"+k).style.display = (k===tab) ? "block" : "none";
       });
       if(tab==="applications") refreshAdminDash();
@@ -399,39 +432,111 @@
       if(!snap.exists()) return toast("Not found or not approved.");
       const u = snap.data();
       if(String(u.pin).trim() !== pin.trim()) return toast("Wrong PIN");
-      if(u.status && u.status !== 'active' && u.role !== 'admin') return toast("Account is " + u.status);
+      if(u.status && u.status !== 'active' && u.role !== 'admin') {
+         return toast("Your account is " + u.status.toUpperCase() + ". Access Denied.");
+      }
       setSession(u.role || "user", phone); toast("Logged in.");
     }catch(e){ toast("Failed"); }
   });
 
-  // --- USER Logic ---
-  async function refreshUserDash(){
+  // --- USER Logic (Multi-wallet & Strict Status Enforcement) ---
+  window.refreshUserDash = async function(){
     if(session.role!=="user") return;
     const snap = await getDoc(doc(db,"users",session.phone));
     if(!snap.exists()) return logout();
     const u = snap.data();
-    $("mePhone").textContent = u.phone || session.phone;
+    
+    // Strict Status Check for User
+    if(u.status && u.status !== 'active' && u.role !== 'admin') {
+        toast(`Your account is ${u.status.toUpperCase()}. You have been logged out.`);
+        return logout();
+    }
+    
+    $("headerPhone").textContent = u.phone || session.phone;
     $("meBal").innerHTML = `${money(u.balance||0)} <span style="font-size:14px">MMK</span>`;
+    $("meBal2").innerHTML = `${money(u.balance2||0)} <span style="font-size:14px">MMK</span>`;
   }
 
+  // INTERNAL TRANSFER Logic
+  window.openInternalTransfer = function() {
+     $("intAmount").value = "";
+     $("internalModal").style.display = "flex";
+  }
+  
+  window.doInternalTransfer = async function() {
+     const fromW = $("intFrom").value;
+     const amount = Math.floor(Number($("intAmount").value));
+     if(isNaN(amount) || amount <= 0) return toast("Invalid amount");
+
+     try {
+        await runTransaction(db, async (tx) => {
+           const ref = doc(db, "users", session.phone);
+           const snap = await tx.get(ref);
+           const d = snap.data();
+           
+           if(d.status && d.status !== 'active') throw new Error(`Your account is ${d.status.toUpperCase()}. Action blocked.`);
+
+           const mainBal = Number(d.balance||0);
+           const w2Bal = Number(d.balance2||0);
+
+           if(fromW === "main" && mainBal < amount) throw new Error("Insufficient Main Wallet balance.");
+           if(fromW === "wallet2" && w2Bal < amount) throw new Error("Insufficient Wallet 2 balance.");
+
+           const newMain = fromW === "main" ? mainBal - amount : mainBal + amount;
+           const newW2 = fromW === "wallet2" ? w2Bal - amount : w2Bal + amount;
+
+           tx.update(ref, { balance: newMain, balance2: newW2 });
+        });
+        
+        await addDoc(collection(db,"transactions"), {
+           type: "internal", from: session.phone, to: session.phone, amount: amount,
+           note: fromW === 'main' ? 'Main ➔ Wallet 2' : 'Wallet 2 ➔ Main',
+           createdAt: serverTimestamp()
+        });
+        
+        toast("Funds moved successfully.");
+        $("internalModal").style.display = "none";
+        refreshUserDash();
+     } catch(e) { toast(e.message); }
+  }
+
+  // EXTERNAL TRANSFER Logic
   $("btnTransfer").addEventListener("click", async ()=>{
     if(session.role!=="user") return;
-    const from = session.phone, to = normPhone($("toPhone").value);
+    const from = session.phone;
+    const to = normPhone($("toPhone").value);
     const amount = Math.floor(Number($("amount").value));
     const note = ($("note").value||"").trim().slice(0, 50);
+    const fromWallet = $("transferFromWallet").value;
+
     if(!to || to === from || isNaN(amount) || amount<=0) return toast("Invalid transfer details.");
 
     try{
       await runTransaction(db, async (tx)=>{
         const fRef = doc(db,"users",from), tRef = doc(db,"users",to);
         const [fSnap, tSnap] = await Promise.all([tx.get(fRef), tx.get(tRef)]);
-        if(!fSnap.exists() || !tSnap.exists()) throw new Error("Account not found.");
-        const fBal = Number(fSnap.data().balance||0), tBal = Number(tSnap.data().balance||0);
-        if(fBal < amount) throw new Error("Insufficient balance.");
-        tx.update(fRef, { balance: fBal - amount });
+        
+        if(!fSnap.exists()) throw new Error("Your account not found.");
+        if(fSnap.data().status && fSnap.data().status !== 'active') throw new Error(`Your account is ${fSnap.data().status.toUpperCase()}. Action blocked.`);
+        
+        if(!tSnap.exists()) throw new Error("Receiver account not found.");
+        
+        const fBalField = fromWallet === "main" ? "balance" : "balance2";
+        const fBal = Number(fSnap.data()[fBalField]||0);
+        const tBal = Number(tSnap.data().balance||0); 
+
+        if(fBal < amount) throw new Error("Insufficient balance in selected wallet.");
+        
+        tx.update(fRef, { [fBalField]: fBal - amount });
         tx.update(tRef, { balance: tBal + amount });
       });
-      await addDoc(collection(db,"transactions"), { type: "p2p", from, to, amount, note, createdAt: serverTimestamp() });
+
+      await addDoc(collection(db,"transactions"), { 
+          type: "p2p", from, to, amount, 
+          note: note ? `From ${fromWallet}: ${note}` : `From ${fromWallet}`, 
+          createdAt: serverTimestamp() 
+      });
+      
       toast(`Transferred ${money(amount)} MMK.`);
       $("toPhone").value = ""; $("amount").value = ""; $("note").value = ""; $("toName").textContent = "-";
       await refreshUserDash();
@@ -441,21 +546,56 @@
   async function refreshMyTx(){
     if(session.role!=="user") return;
     const me = session.phone;
-    const q1 = query(collection(db,"transactions"), where("from","==",me), limit(30));
-    const q2 = query(collection(db,"transactions"), where("to","==",me), limit(30));
+    
+    // Names Fetching
+    const userDocs = await getDocs(collection(db, "users"));
+    const nameMap = {};
+    userDocs.forEach(d => nameMap[d.id] = d.data().name || 'Unknown');
+
+    const q1 = query(collection(db,"transactions"), where("from","==",me), limit(40));
+    const q2 = query(collection(db,"transactions"), where("to","==",me), limit(40));
     const [s1,s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    
     const map = new Map();
-    s1.forEach(s=>map.set(s.id, { id:s.id, ...s.data() })); s2.forEach(s=>map.set(s.id, { id:s.id, ...s.data() }));
-    const merged = Array.from(map.values()).sort((a,b)=>tsMillis(b.createdAt)-tsMillis(a.createdAt)).slice(0, 40);
+    s1.forEach(s=>map.set(s.id, { id:s.id, ...s.data() })); 
+    s2.forEach(s=>map.set(s.id, { id:s.id, ...s.data() }));
+    const merged = Array.from(map.values()).sort((a,b)=>tsMillis(b.createdAt)-tsMillis(a.createdAt)).slice(0, 50);
 
     if(merged.length===0){ $("myTxWrap").innerHTML = `<p class="muted small">No transactions yet.</p>`; return; }
+    
     const rows = merged.map(t=>{
-      const isOut = (t.from===me), other = isOut ? t.to : t.from;
-      const typeLabel = isOut ? "SENT" : "RECEIVED", amountFmt = (isOut ? "-" : "+") + money(t.amount);
+      const isInternal = (t.from === me && t.to === me);
+      const isOut = !isInternal && (t.from===me);
+      
+      let otherPhone, otherName, typeLabel, amountFmt, colorClass;
+      
+      if (isInternal) {
+          otherPhone = "Internal Move";
+          otherName = "-";
+          typeLabel = "TRANSFER";
+          amountFmt = money(t.amount);
+          colorClass = "text"; 
+      } else {
+          otherPhone = isOut ? t.to : t.from;
+          if (otherPhone === 'admin' || otherPhone === 'SYSTEM') {
+              otherPhone = 'System';
+              otherName = 'Admin / System';
+          } else {
+              otherName = nameMap[otherPhone] || 'Unknown';
+          }
+          typeLabel = isOut ? "SENT" : "RECEIVED";
+          amountFmt = (isOut ? "-" : "+") + money(t.amount);
+          colorClass = isOut ? "danger" : "ok";
+      }
+      
       const noteHtml = t.note ? `<div class="small muted">${t.note}</div>` : "";
       return `<tr>
-        <td><div style="font-weight:700">${typeLabel}</div><div class="mono small">${other === 'admin' ? 'System' : other}</div></td>
-        <td><div style="font-weight:900; color:var(--${isOut?'danger':'ok'})">${amountFmt}</div>${noteHtml}</td>
+        <td>
+          <div style="font-weight:700">${typeLabel}</div>
+          <div class="mono small" style="margin-top:2px">${otherPhone}</div>
+          <div class="muted small">${otherName}</div>
+        </td>
+        <td><div style="font-weight:900; color:var(--${colorClass})">${amountFmt}</div>${noteHtml}</td>
       </tr>`;
     }).join("");
     $("myTxWrap").innerHTML = `<table><tbody>${rows}</tbody></table>`;
@@ -491,8 +631,6 @@
   let html5QrcodeScanner = null;
   function onScanSuccess(decodedText) {
     stopScanner();
-    
-    // Parse phone and amount from QR (separated by |)
     const parts = decodedText.split("|");
     const phone = normPhone(parts[0]);
     $("toPhone").value = phone;
@@ -509,7 +647,6 @@
 
   function openScanner() {
     $("scannerModal").style.display = 'flex';
-    // Make qrbox dynamic based on window size for a big, clear scanning area
     let boxSize = Math.min(window.innerWidth * 0.75, 400); 
     html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: boxSize, height: boxSize} }, false);
     html5QrcodeScanner.render(onScanSuccess);
@@ -526,6 +663,7 @@
   // ================= ADMIN LOGIC =================
   window.refreshAdminDash = async function() {
     if (session.role !== "admin") return;
+    $("headerPhone").textContent = "Admin | " + session.phone;
     $("adminPhoneDash").textContent = session.phone;
     try {
       const [pendSnap, userSnap] = await Promise.all([
@@ -560,7 +698,7 @@
       const n = prompt("Enter Name:"); if(!n) return;
       const pin = prompt("Enter 4-6 digit PIN:"); if(!pin) return;
       try {
-          await setDoc(doc(db, "users", p), { phone: p, name: n, pin: pin, role: "admin", balance: 0, status: "active" });
+          await setDoc(doc(db, "users", p), { phone: p, name: n, pin: pin, role: "admin", balance: 0, balance2: 0, status: "active" });
           toast("Admin Document Created!");
       } catch(e) { toast("Failed to create admin"); }
   };
@@ -571,7 +709,10 @@
       const appRef = doc(db, "applications", phone);
       const snap = await getDoc(appRef);
       if(snap.exists()) {
-        await setDoc(doc(db, "users", phone), { phone: snap.data().phone, name: snap.data().name, pin: snap.data().pin, role: "user", balance: 0, status: 'active' });
+        await setDoc(doc(db, "users", phone), { 
+            phone: snap.data().phone, name: snap.data().name, pin: snap.data().pin, 
+            role: "user", balance: 0, balance2: 0, status: 'active' 
+        });
         await updateDoc(appRef, { status: "approved" });
         toast("Approved"); refreshAdminDash();
       }
@@ -605,26 +746,33 @@
   };
 
   function renderUsersTable(docsSnap) {
-     let html = `<table><tr><th>Phone</th><th>Name</th><th>Status</th><th>Role</th><th>Balance</th><th style="min-width: 240px;">Action</th></tr>`;
+     let html = `<table><tr><th>User</th><th>Status / Role</th><th>Balances</th><th style="min-width: 240px;">Action</th></tr>`;
      let count = 0;
      docsSnap.forEach(dSnap => {
         const d = dSnap.data ? dSnap.data() : dSnap;
         const phone = d.phone || dSnap.id;
         const stat = d.status || 'active';
         html += `<tr>
-          <td class="mono">${phone}</td>
-          <td>${d.name || '-'}</td>
-          <td><span class="tag ${stat}">${stat}</span></td>
-          <td>${d.role}</td>
-          <td style="font-weight:bold">${money(d.balance)}</td>
+          <td>
+            <div class="mono" style="font-weight:700">${phone}</div>
+            <div class="muted small">${d.name || '-'}</div>
+          </td>
+          <td>
+             <span class="tag ${stat}">${stat}</span><br>
+             <span class="small muted" style="text-transform:uppercase">${d.role}</span>
+          </td>
+          <td>
+            <div style="font-weight:bold; color:var(--primary)">M: ${money(d.balance)}</div>
+            <div style="font-size:12px; font-weight:bold; color:var(--ok)">W2: ${money(d.balance2||0)}</div>
+          </td>
           <td>
             <button class="btn dark" style="padding:4px 6px; margin:2px; font-size:11px" onclick="updateUserStatus('${phone}', 'active')">Activate</button>
             <button class="btn dark" style="padding:4px 6px; margin:2px; font-size:11px" onclick="updateUserStatus('${phone}', 'hold')">Hold</button>
             <button class="btn danger" style="padding:4px 6px; margin:2px; font-size:11px" onclick="updateUserStatus('${phone}', 'terminated')">Terminate</button>
             <button class="btn danger" style="padding:4px 6px; margin:2px; font-size:11px" onclick="adminDelete('${phone}')">Delete</button>
             <br>
-            <button class="btn ok" style="padding:4px 6px; margin:2px; font-size:11px" onclick="adminTopup('${phone}')">+ Topup</button>
-            <button class="btn ghost" style="padding:4px 6px; margin:2px; font-size:11px; color:var(--text); border-color:var(--text);" onclick="adminDeduct('${phone}')">- Deduct</button>
+            <button class="btn ok" style="padding:4px 6px; margin:2px; font-size:11px" onclick="adminTopup('${phone}')">+ Topup (Main)</button>
+            <button class="btn ghost" style="padding:4px 6px; margin:2px; font-size:11px; color:var(--text); border-color:var(--text);" onclick="adminDeduct('${phone}')">- Deduct (Main)</button>
           </td>
         </tr>`;
         count++;
@@ -632,7 +780,7 @@
      $("adminUsersWrap").innerHTML = count ? html + `</table>` : "<p class='muted small'>No users found.</p>";
   }
 
-  // --- Admin Ledger & Trx Logs ---
+  // --- Admin Ledger & Trx Logs (With Names) ---
   window.updateUserStatus = async function(phone, status) {
       if(confirm(`Set status to ${status.toUpperCase()} for ${phone}?`)) {
           await updateDoc(doc(db, "users", phone), { status: status });
@@ -650,7 +798,7 @@
   };
 
   window.adminTopup = async function(phone) {
-     const amountStr = prompt("Enter Topup Amount (MMK) for " + phone + ":"); if(!amountStr) return;
+     const amountStr = prompt("Enter Topup Amount (MMK) for Main Wallet of " + phone + ":"); if(!amountStr) return;
      const amount = Math.floor(Number(amountStr));
      if(isNaN(amount) || amount <= 0) return toast("Invalid amount");
      try {
@@ -659,13 +807,13 @@
            if(!snap.exists()) throw new Error("User not found");
            tx.update(ref, { balance: Number(snap.data().balance || 0) + amount });
         });
-        await addDoc(collection(db, "transactions"), { type: "sys", to: phone, from: "SYSTEM", amount: amount, note: "Topup", createdAt: serverTimestamp() });
+        await addDoc(collection(db, "transactions"), { type: "sys", to: phone, from: "SYSTEM", amount: amount, note: "Topup to Main", createdAt: serverTimestamp() });
         toast("Topped up " + money(amount) + " MMK."); loadAllUsers(); 
      } catch(e) { toast(e.message); }
   };
 
   window.adminDeduct = async function(phone) {
-     const amountStr = prompt("Enter amount (MMK) to DEDUCT from " + phone + ":"); if(!amountStr) return;
+     const amountStr = prompt("Enter amount (MMK) to DEDUCT from Main Wallet of " + phone + ":"); if(!amountStr) return;
      const amount = Math.floor(Number(amountStr));
      if(isNaN(amount) || amount <= 0) return toast("Invalid amount");
      try {
@@ -673,7 +821,7 @@
            const ref = doc(db, "users", phone); const snap = await tx.get(ref);
            if(!snap.exists()) throw new Error("User not found");
            const curBal = Number(snap.data().balance || 0);
-           if(curBal < amount) throw new Error("User only has " + curBal + " MMK.");
+           if(curBal < amount) throw new Error("User only has " + curBal + " MMK in Main.");
            tx.update(ref, { balance: curBal - amount });
         });
         await addDoc(collection(db, "transactions"), { type: "admin_deduct", from: phone, to: "admin", amount: amount, note: "Deducted by Admin", createdAt: serverTimestamp() });
@@ -684,10 +832,14 @@
   window.loadAdminLedger = async function() {
     if (session.role !== "admin") return;
     try {
+      const userDocs = await getDocs(collection(db, "users"));
+      const nameMap = {};
+      userDocs.forEach(d => nameMap[d.id] = d.data().name || 'Unknown');
+
       const qSnap = await getDocs(query(collection(db, "transactions"), limit(200)));
       const txs = [];
       qSnap.forEach(doc => txs.push({ id: doc.id, ...doc.data() }));
-      txs.sort((a,b) => tsMillis(b.createdAt) - tsMillis(a.createdAt)); // Sort Descending
+      txs.sort((a,b) => tsMillis(b.createdAt) - tsMillis(a.createdAt)); 
 
       if (txs.length === 0) {
         $("adminLedgerWrap").innerHTML = "<p class='muted small'>No transactions found.</p>"; return;
@@ -695,10 +847,19 @@
 
       let html = `<table><tr><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Note</th></tr>`;
       txs.forEach(t => {
+         const fromName = (t.from === 'SYSTEM' || t.from === 'admin') ? 'Admin/System' : (nameMap[t.from] || '-');
+         const toName = (t.to === 'SYSTEM' || t.to === 'admin') ? 'Admin/System' : (nameMap[t.to] || '-');
+         
          html += `<tr>
-           <td>${t.type || '-'}</td>
-           <td class="mono">${t.from || '-'}</td>
-           <td class="mono">${t.to || '-'}</td>
+           <td><span class="tag active">${t.type || '-'}</span></td>
+           <td>
+              <div class="mono">${t.from || '-'}</div>
+              <div class="small muted">${fromName}</div>
+           </td>
+           <td>
+              <div class="mono">${t.to || '-'}</div>
+              <div class="small muted">${toName}</div>
+           </td>
            <td style="font-weight:bold">${money(t.amount)}</td>
            <td class="small muted">${t.note || ''}</td>
          </tr>`;
@@ -712,14 +873,14 @@
   function render(){
     $("btnLogout").style.display = session.role ? "inline-block" : "none";
     if(session.role === "user") {
-        $("sessionPill").textContent = `User: ${session.phone}`;
-        $("rightTitle").textContent = "My HAPPY PAY Wallet";
+        $("sessionPill").textContent = "Active";
+        $("rightTitle").innerHTML = `My Wallet <span id="headerPhone" class="mono muted" style="font-size:12px;"></span>`;
     } else if (session.role === "admin") {
-        $("sessionPill").textContent = `Admin: ${session.phone}`;
-        $("rightTitle").textContent = "Admin Dashboard";
+        $("sessionPill").textContent = "Admin";
+        $("rightTitle").innerHTML = `Admin Dashboard <span id="headerPhone" class="mono muted" style="font-size:12px;"></span>`;
     } else {
         $("sessionPill").textContent = "Not logged in";
-        $("rightTitle").textContent = "Dashboard";
+        $("rightTitle").innerHTML = `Dashboard`;
     }
 
     $("paneNone").style.display = session.role ? "none" : "block";
