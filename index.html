@@ -26,7 +26,7 @@
     main{max-width:1180px;margin:16px auto;padding:0 14px 30px}
     .grid{display:grid;grid-template-columns:1fr;gap:14px}
     @media(min-width:980px){.grid{grid-template-columns:380px 1fr}}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden; transition: all 0.3s;}
     .hd{padding:14px;border-bottom:1px solid var(--line)}
     .hd h2{margin:0;font-size:14px}
     .bd{padding:14px}
@@ -81,9 +81,10 @@
     .modal-content.mini { max-width: 400px; }
     .modal-content h3 { margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 5px;}
     #reader { 
-      width: 100%; border: 3px solid var(--primary); border-radius: 16px; 
-      overflow: hidden; margin-bottom: 16px; background: #000;
+      width: 100%; border: 3px solid var(--line); border-radius: 16px; 
+      overflow: hidden; margin-bottom: 16px; background: #fff; /* Changed from black to white */
     }
+    #reader a { color: var(--primary) !important; text-decoration: none; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -98,9 +99,9 @@
 </header>
 
 <main>
-  <div class="grid">
+  <div class="grid" id="mainGrid">
     <!-- LEFT: LOGIN / REGISTER -->
-    <div class="card">
+    <div class="card" id="authCard">
       <div class="hd"><h2>Access</h2></div>
       <div class="bd">
         <div class="tabs">
@@ -131,7 +132,7 @@
     </div>
 
     <!-- RIGHT: DASHBOARD -->
-    <div class="card">
+    <div class="card" id="dashCard">
       <div class="hd">
         <h2 id="rightTitle" style="display:flex; justify-content:space-between; align-items:center;">
           Dashboard
@@ -162,6 +163,8 @@
             <button class="tab active" data-ut="transfer">Transfer</button>
             <button class="tab" data-ut="receive">Receive</button>
             <button class="tab" data-ut="history">History</button>
+            <!-- New Mini Game Tab -->
+            <button class="tab" data-ut="game">Mini Game 🎲</button>
           </div>
 
           <!-- TRANSFER -->
@@ -214,6 +217,38 @@
           <div id="uTab-history" style="display:none;margin-top:16px">
             <div id="myTxWrap"></div>
           </div>
+
+          <!-- GAME (Coin Flip) -->
+          <div id="uTab-game" style="display:none;margin-top:16px">
+            <div class="kpi" style="margin-bottom: 12px;">
+                <div class="box" style="text-align:center; padding:12px; background: rgba(37,99,235,.05); border-color:var(--primary)">
+                    <h3 style="margin:0 0 5px 0; color:var(--primary)">🪙 Coin Flip (ခေါင်း / ပန်း)</h3>
+                    <div class="muted small">Play and double your bet amount!</div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div>
+                  <label>Select Wallet</label>
+                  <select id="gameWallet">
+                    <option value="main">Main Wallet</option>
+                    <option value="wallet2">Wallet 2</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Bet Amount (MMK)</label>
+                  <input id="gameBet" type="number" min="50" step="50" placeholder="e.g. 500" />
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:16px">
+              <button class="btn primary" style="padding:16px; font-size:16px;" onclick="playCoinFlip('head')">🪙 HEAD (ခေါင်း)</button>
+              <button class="btn danger" style="padding:16px; font-size:16px;" onclick="playCoinFlip('tail')">🌸 TAIL (ပန်း)</button>
+            </div>
+            
+            <div id="gameResultWrap" style="margin-top:20px; text-align:center; font-size:18px; font-weight:900;"></div>
+          </div>
+
         </div>
 
         <!-- ADMIN DASH -->
@@ -379,7 +414,8 @@
       document.querySelectorAll("[data-ut]").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
       const tab = btn.getAttribute("data-ut");
-      ["transfer","receive","history"].forEach(k=>{ $("uTab-"+k).style.display = (k===tab) ? "block" : "none"; });
+      // Added game tab
+      ["transfer","receive","history","game"].forEach(k=>{ $("uTab-"+k).style.display = (k===tab) ? "block" : "none"; });
       if(tab==="receive") window.generateMyQr();
       if(tab==="history") refreshMyTx().catch(()=>{});
     });
@@ -543,11 +579,69 @@
     }catch(e){ toast(e.message); }
   });
 
+  // --- GAME LOGIC (Coin Flip) ---
+  window.playCoinFlip = async function(choice) {
+      if(session.role!=="user") return;
+      
+      const wallet = $("gameWallet").value;
+      const betAmt = Math.floor(Number($("gameBet").value));
+      const resEl = $("gameResultWrap");
+      
+      if(isNaN(betAmt) || betAmt < 50) return toast("Minimum bet is 50 MMK.");
+      
+      resEl.innerHTML = "<span class='muted'>Flipping coin... 🪙</span>";
+      
+      try {
+          let isWin = false;
+          let actualFlip = '';
+          
+          await runTransaction(db, async (tx) => {
+               const ref = doc(db, "users", session.phone);
+               const snap = await tx.get(ref);
+               if(!snap.exists()) throw new Error("Account error.");
+               const d = snap.data();
+               
+               if(d.status && d.status !== 'active') throw new Error(`Your account is ${d.status.toUpperCase()}. Action blocked.`);
+               
+               const balField = wallet === 'main' ? 'balance' : 'balance2';
+               const bal = Number(d[balField] || 0);
+               
+               if (bal < betAmt) throw new Error(`Insufficient balance in ${wallet}.`);
+               
+               // Random Logic: 50% chance
+               actualFlip = Math.random() < 0.5 ? 'head' : 'tail';
+               isWin = (choice === actualFlip);
+               
+               // Calculate new balance
+               // If Win: you get your bet back + bet amount (Net +betAmt)
+               // If Lose: you lose your bet amount (Net -betAmt)
+               const newBal = isWin ? (bal + betAmt) : (bal - betAmt);
+               
+               tx.update(ref, { [balField]: newBal });
+          });
+          
+          const resultMm = actualFlip === 'head' ? 'ခေါင်း (HEAD)' : 'ပန်း (TAIL)';
+          
+          if (isWin) {
+              await addDoc(collection(db,"transactions"), { type: "game_win", from: "SYSTEM", to: session.phone, amount: betAmt, note: `Won Coin Flip (${actualFlip}) to ${wallet}`, createdAt: serverTimestamp() });
+              resEl.innerHTML = `<span style="color:var(--ok)">🎉 နိုင်ပါသည်! ${resultMm} ကျပါတယ်။ (+${money(betAmt)} MMK)</span>`;
+          } else {
+              await addDoc(collection(db,"transactions"), { type: "game_loss", from: session.phone, to: "SYSTEM", amount: betAmt, note: `Lost Coin Flip (${actualFlip}) from ${wallet}`, createdAt: serverTimestamp() });
+              resEl.innerHTML = `<span style="color:var(--danger)">😢 ရှုံးပါသည်! ${resultMm} ကျပါတယ်။ (-${money(betAmt)} MMK)</span>`;
+          }
+          
+          refreshUserDash();
+      } catch(e) {
+          resEl.innerHTML = "";
+          toast(e.message); 
+      }
+  }
+
+
   async function refreshMyTx(){
     if(session.role!=="user") return;
     const me = session.phone;
     
-    // Names Fetching
     const userDocs = await getDocs(collection(db, "users"));
     const nameMap = {};
     userDocs.forEach(d => nameMap[d.id] = d.data().name || 'Unknown');
@@ -583,9 +677,14 @@
           } else {
               otherName = nameMap[otherPhone] || 'Unknown';
           }
-          typeLabel = isOut ? "SENT" : "RECEIVED";
-          amountFmt = (isOut ? "-" : "+") + money(t.amount);
-          colorClass = isOut ? "danger" : "ok";
+          
+          if (t.type === 'game_win') { typeLabel = "WON GAME"; colorClass = "ok"; amountFmt = "+" + money(t.amount); }
+          else if (t.type === 'game_loss') { typeLabel = "LOST GAME"; colorClass = "danger"; amountFmt = "-" + money(t.amount); }
+          else {
+              typeLabel = isOut ? "SENT" : "RECEIVED";
+              amountFmt = (isOut ? "-" : "+") + money(t.amount);
+              colorClass = isOut ? "danger" : "ok";
+          }
       }
       
       const noteHtml = t.note ? `<div class="small muted">${t.note}</div>` : "";
@@ -872,6 +971,16 @@
   // --- Render ---
   function render(){
     $("btnLogout").style.display = session.role ? "inline-block" : "none";
+    
+    // Hide Login Card completely if logged in to use full width
+    if (session.role) {
+        $("authCard").style.display = "none";
+        $("mainGrid").style.display = "block"; // override CSS grid to use full width block
+    } else {
+        $("authCard").style.display = "block";
+        $("mainGrid").style.display = ""; // restore CSS grid
+    }
+    
     if(session.role === "user") {
         $("sessionPill").textContent = "Active";
         $("rightTitle").innerHTML = `My Wallet <span id="headerPhone" class="mono muted" style="font-size:12px;"></span>`;
